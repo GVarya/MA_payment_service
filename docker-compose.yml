@@ -1,22 +1,50 @@
 version: '3.8'
 
 services:
-  payment-service:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - AMQP_URL=amqp://guest:guest@rabbitmq:5672/
-    depends_on:
-      - rabbitmq
-    volumes:
-      - ./app:/app/app
-
+  # RabbitMQ сервис сообщений (ОБЩИЙ для всех микросервисов)
   rabbitmq:
-    image: rabbitmq:3-management-alpine
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+    image: rabbitmq:3.12-management-alpine
+    container_name: shared_rabbitmq
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5673:5672"
+      - "15673:15672"  # Management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 15s
+    networks:
+      - payment_network
+
+  # Payment Service (полностью независимый)
+  payment_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: payment_service
+    environment:
+      AMQP_URL: amqp://guest:guest@rabbitmq:5672/
+      PYTHONUNBUFFERED: 1
+    ports:
+      - "8001:8001"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    networks:
+      - payment_network
+
+volumes:
+  rabbitmq_data:
+
+networks:
+  payment_network:
+    driver: bridge
