@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # RabbitMQ сервис сообщений (ОБЩИЙ для всех микросервисов)
   rabbitmq:
     image: rabbitmq:3.12-management-alpine
     container_name: shared_rabbitmq
@@ -12,7 +11,7 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     ports:
       - "5673:5672"
-      - "15673:15672"  # Management UI
+      - "15673:15672" 
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
@@ -22,7 +21,6 @@ services:
     networks:
       - payment_network
 
-  # Payment Service (полностью независимый)
   payment_service:
     build:
       context: .

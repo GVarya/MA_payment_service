@@ -9,7 +9,6 @@ from app.settings import settings
 logger = logging.getLogger(__name__)
 
 async def process_payment_event(msg: IncomingMessage):
-    """Обработка событий платежа"""
     try:
         data = json.loads(msg.body.decode())
         logger.info(f"Processing payment event: {data}")
@@ -21,7 +20,6 @@ async def process_payment_event(msg: IncomingMessage):
 
 
 async def send_payment_success(order):
-    """Отправить сообщение о успешном платеже в homework_service"""
     try:
         connection = await connect_robust(settings.amqp_url, timeout=10)
         async with connection:
@@ -45,7 +43,6 @@ async def send_payment_success(order):
 
 
 async def send_course_access_granted(order):
-    """Отправить сообщение о предоставлении доступа к курсу"""
     try:
         connection = await connect_robust(settings.amqp_url, timeout=10)
         async with connection:
@@ -68,7 +65,6 @@ async def send_course_access_granted(order):
 
 
 async def consume():
-    """Подключится к RabbitMQ и слушать сообщения"""
     max_retries = 10
     retry_delay = 5
     
@@ -79,19 +75,12 @@ async def consume():
             connection = await connect_robust(settings.amqp_url, timeout=10)
             async with connection:
                 channel = await connection.channel()
-                logger.info("✅ Successfully connected to RabbitMQ (Payment Service)")
-                
-                # Просто слушаем бесконечно
-                # Если нужно слушать очередь:
-                # queue = await channel.declare_queue('payment_events')
-                # async with queue.iterator() as queue_iter:
-                #     async for message in queue_iter:
-                #         await process_payment_event(message)
+                logger.info("Successfully connected to RabbitMQ (Payment Service)")
                 
                 await asyncio.sleep(999999)
                 
         except Exception as e:
-            logger.error(f"❌ RabbitMQ connection error: {e}")
+            logger.error(f"RabbitMQ connection error: {e}")
             
             if attempt < max_retries - 1:
                 logger.info(f"Retrying in {retry_delay} seconds...")
