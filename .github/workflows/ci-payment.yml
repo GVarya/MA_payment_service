@@ -87,17 +87,42 @@ jobs:
       - name: Run unit tests
         run: pytest tests/unit -v
 
-      - name: Build and run payment service (Docker)
+      - name: Build Docker image
+        run: docker build -t payment_service .
+
+      - name: Start Docker services with docker-compose
         run: |
-          docker build -t payment_service .
-          docker run -d --name payment_service \
-            -p 8001:8001 \
-            -e AMQP_URL=amqp://guest:guest@localhost:5672/ \
-            payment_service
-          sleep 10
+          docker ps -aq | xargs -r docker kill || true
+          docker ps -aq | xargs -r docker rm || true
+        
+          lsof -i :5432 -t | xargs -r kill -9 || true
+          lsof -i :5672 -t | xargs -r kill -9 || true
+          lsof -i :8000 -t | xargs -r kill -9 || true
+          docker compose -f docker-compose.yml down --remove-orphans || true
+        
+          docker compose -f docker-compose.yml up -d
+          sleep 40
+
+          # until docker exec homework_postgres psql -U postgres -d homework_db -c "SELECT 1" > /dev/null 2>&1; do
+          #   echo "Waiting for database..."
+          #   sleep 1
+          # done
+
+          # echo " Database is ready!"
+
+          # # Проверяем что API работает
+          # curl -f http://localhost:8000/api/homeworks/ || exit 1
+
+          # echo " API is ready!"
 
       - name: Run e2e tests
         run: pytest tests/e2e -v
+        # env:
+        #   DATABASE_URL: postgresql://postgres:password@localhost:5432/homework_test
+
+      - name: Stop Docker services
+        if: always()
+        run: docker compose -f docker-compose.yml down
 
   build-and-push-to-yc:
     name: Build and Push to Yandex Cloud Registry
